@@ -1,0 +1,270 @@
+/* Modern Dark Theme Register Page Styles */
+
+.register-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e0f2fe 0%, #f3e5f5 50%, #fff3e0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.register-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 20% 80%, rgba(255,182,193,0.2) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(173,216,230,0.2) 0%, transparent 50%),
+              radial-gradient(circle at 40% 40%, rgba(255,228,196,0.2) 0%, transparent 50%);
+  animation: flowShapes 20s ease-in-out infinite;
+}
+
+@keyframes flowShapes {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -30px) scale(1.1); }
+  50% { transform: translate(-20px, 20px) scale(0.9); }
+  75% { transform: translate(10px, 10px) scale(1.05); }
+}
+
+.register-container {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 480px;
+}
+
+.register-box {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  position: relative;
+  overflow: hidden;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.register-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.6s;
+}
+
+.register-box:hover::before {
+  left: 100%;
+}
+
+.register-box h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+}
+
+.subtitle {
+  text-align: center;
+  color: #718096;
+  margin-bottom: 2rem;
+  font-size: 1rem;
+  font-weight: 400;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.alert-error {
+  background: rgba(255,102,102,0.1);
+  border: 1px solid rgba(255,102,102,0.3);
+  color: #c53030;
+}
+
+.alert-success {
+  background: rgba(102,255,102,0.1);
+  border: 1px solid rgba(102,255,102,0.3);
+  color: #38a169;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.form-group {
+  position: relative;
+  margin-bottom: 2rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-input {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 16px;
+  color: #4a5568;
+  font-size: 1rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.form-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.form-label {
+  position: absolute;
+  left: 1.5rem;
+  top: 1rem;
+  color: #a0aec0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.form-label.active {
+  top: -0.5rem;
+  left: 1rem;
+  font-size: 0.8rem;
+  color: #a855f7;
+  background: rgba(255,255,255,0.9);
+  padding: 0 0.5rem;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+  position: relative;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.btn-submit::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-submit:hover::before {
+  left: 100%;
+}
+
+.btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px rgba(102, 126, 234, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-link {
+  text-align: center;
+  margin-top: 1.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+
+.auth-link a {
+  color: #4a5568;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.auth-link a:hover {
+  color: #e0e7ff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .register-container {
+    max-width: 420px;
+  }
+
+  .register-box {
+    padding: 2.5rem 2rem;
+    max-height: 85vh;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .register-box h1 {
+    font-size: 2.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .register-page {
+    padding: 1rem;
+  }
+
+  .register-box {
+    padding: 2rem 1.5rem;
+  }
+
+  .register-box h1 {
+    font-size: 2rem;
+  }
+
+  .form-input {
+    padding: 0.9rem 1.2rem;
+  }
+
+  .form-label.active {
+    top: -0.4rem;
+    font-size: 0.75rem;
+  }
+}

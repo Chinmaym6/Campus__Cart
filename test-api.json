@@ -1,0 +1,10 @@
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "john@test.edu",
+  "password": "password123",
+  "confirmPassword": "password123",
+  "university": "Stanford University",
+  "graduationYear": 2024,
+  "major": "Computer Science"
+}

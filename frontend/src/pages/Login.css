@@ -1,0 +1,232 @@
+.login-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e0f2fe 0%, #f3e5f5 50%, #fff3e0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 20% 80%, rgba(255,182,193,0.2) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, rgba(173,216,230,0.2) 0%, transparent 50%),
+              radial-gradient(circle at 40% 40%, rgba(255,228,196,0.2) 0%, transparent 50%);
+  animation: flowShapes 20s ease-in-out infinite;
+}
+
+@keyframes flowShapes {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(30px, -30px) scale(1.1); }
+  50% { transform: translate(-20px, 20px) scale(0.9); }
+  75% { transform: translate(10px, 10px) scale(1.05); }
+}
+
+.login-container {
+  width: 100%;
+  max-width: 420px;
+  position: relative;
+  z-index: 1;
+}
+
+.login-box {
+  background: rgba(255,255,255,0.25);
+  backdrop-filter: blur(15px);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 3rem;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  animation: gentleFloat 6s ease-in-out infinite;
+}
+
+@keyframes gentleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.login-box h1 {
+  font-size: 2rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+  color: #4a5568;
+  font-weight: 700;
+}
+
+.subtitle {
+  text-align: center;
+  color: #718096;
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.alert-error {
+  background: rgba(255,102,102,0.1);
+  color: #c53030;
+  border: 1px solid rgba(255,102,102,0.3);
+}
+
+.alert-info {
+  background: rgba(102,153,255,0.1);
+  color: #3182ce;
+  border: 1px solid rgba(102,153,255,0.3);
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  position: relative;
+}
+
+.form-label {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  color: #a0aec0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-label::before {
+  content: attr(data-icon);
+  font-size: 1.2rem;
+}
+
+.form-label.active {
+  top: -0.5rem;
+  left: 0.5rem;
+  font-size: 0.8rem;
+  color: #a855f7;
+  background: rgba(255,255,255,0.9);
+  padding: 0 0.5rem;
+  border-radius: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.1);
+  color: #4a5568;
+  font-size: 1rem;
+  font-family: inherit;
+  transition: all 0.3s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #a855f7;
+  box-shadow: 0 0 0 3px rgba(168,85,247,0.1);
+  background: rgba(255,255,255,0.2);
+}
+
+.form-input::placeholder {
+  color: #a0aec0;
+}
+
+.btn-submit {
+  padding: 1rem;
+  background: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.btn-submit:hover {
+  transform: translateY(-2px);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .login-box {
+    padding: 2rem;
+  }
+  .login-page {
+    padding: 1rem;
+  }
+}
+  transition: all 0.3s ease;
+  margin-top: 0.5rem;
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.auth-link {
+  text-align: center;
+  color: #7f8c8d;
+  margin-top: 1rem;
+}
+
+.auth-link a {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.auth-link a:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
+.divider {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 1.5rem 0;
+}
+
+.help-text {
+  text-align: center;
+  color: #95a5a6;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+  .login-box {
+    padding: 2rem 1.5rem;
+  }
+
+  .login-box h1 {
+    font-size: 1.5rem;
+  }
+}
