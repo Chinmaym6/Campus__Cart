@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from '../config/axios';
 import './CreateListing.css';
@@ -108,20 +108,35 @@ export default function CreateListing() {
   const [dragOver, setDragOver] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [primaryPhotoIndex, setPrimaryPhotoIndex] = useState(0);
+  const [listingLocation, setListingLocation] = useState({ lat: null, lng: null });
+  const [meetupLocation, setMeetupLocation] = useState({ lat: null, lng: null });
+  const listingMapRef = useRef(null);
+  const meetupMapRef = useRef(null);
+  const listingMarkerRef = useRef(null);
+  const meetupMarkerRef = useRef(null);
 
   useEffect(() => {
     const savedFormData = localStorage.getItem('createListingFormData');
     if (savedFormData) {
-      const parsed = JSON.parse(savedFormData);
-      const restoredPhotos = parsed.photos.filter(p => p.base64).map(p => {
-        const file = dataURLToFile(p.base64, p.name);
-        return {
-          ...p,
-          file,
-          url: URL.createObjectURL(file)
-        };
-      });
-      setFormData({ ...parsed, photos: restoredPhotos });
+      try {
+        const parsed = JSON.parse(savedFormData);
+        if (parsed.photos && Array.isArray(parsed.photos)) {
+          const restoredPhotos = parsed.photos.filter(p => p && p.base64).map(p => {
+            const file = dataURLToFile(p.base64, p.name);
+            return {
+              ...p,
+              file,
+              url: URL.createObjectURL(file)
+            };
+          });
+          setFormData({ ...parsed, photos: restoredPhotos });
+        } else {
+          setFormData(prev => ({ ...prev, ...parsed, photos: prev.photos }));
+        }
+      } catch (e) {
+        console.error('Error restoring form data:', e);
+        localStorage.removeItem('createListingFormData');
+      }
     }
     const savedStep = localStorage.getItem('createListingStep');
     if (savedStep) {
@@ -135,6 +150,53 @@ export default function CreateListing() {
       setIsEditing(true);
       setEditingId(editListing.id);
       setExistingPhotos(editListing.photos || []);
+      
+      // Extract location coordinates if they exist
+      // PostGIS geography points are stored as WKT or GeoJSON
+      // We need to parse them if available
+      if (editListing.location) {
+        // Assuming backend sends lat/lng separately or we parse from geography
+        const locLat = editListing.location_lat || null;
+        const locLng = editListing.location_lng || null;
+        if (locLat && locLng) {
+          setListingLocation({ lat: parseFloat(locLat), lng: parseFloat(locLng) });
+        }
+      }
+      
+      if (editListing.meetup_location) {
+        const meetupLat = editListing.meetup_location_lat || null;
+        const meetupLng = editListing.meetup_location_lng || null;
+        if (meetupLat && meetupLng) {
+          setMeetupLocation({ lat: parseFloat(meetupLat), lng: parseFloat(meetupLng) });
+        }
+      }
+      
+      // Parse availability if it's JSON string
+      let parsedAvailability = '';
+      if (editListing.availability) {
+        try {
+          const availArray = typeof editListing.availability === 'string' 
+            ? JSON.parse(editListing.availability) 
+            : editListing.availability;
+          parsedAvailability = Array.isArray(availArray) ? availArray[0] : editListing.availability;
+        } catch {
+          parsedAvailability = editListing.availability;
+        }
+      }
+      
+      // Parse payment methods
+      let parsedPaymentMethod = 'cash';
+      if (editListing.payment_methods) {
+        try {
+          const paymentArray = typeof editListing.payment_methods === 'string'
+            ? JSON.parse(editListing.payment_methods)
+            : editListing.payment_methods;
+          parsedPaymentMethod = Array.isArray(paymentArray) ? paymentArray[0] : 'cash';
+        } catch {
+          parsedPaymentMethod = 'cash';
+        }
+      }
+      
       // Pre-fill form data (photos are handled separately for editing)
       setFormData(prev => ({
         ...prev,
@@ -145,17 +207,19 @@ export default function CreateListing() {
         condition: editListing.condition || '',
         price: editListing.price || '',
         priceType: editListing.negotiable ? 'negotiable' : editListing.firm ? 'firm' : 'negotiable',
-        paymentMethod: editListing.payment_methods?.[0] || 'cash',
+        paymentMethod: parsedPaymentMethod,
         open_to_trades: editListing.open_to_trades || false,
         trade_description: editListing.trade_description || '',
         trade_preference: editListing.trade_preference || '',
         location_text: editListing.location_text || '',
+        location_description: editListing.location_description || '',
+        meetup_location_text: editListing.meetup_location_text || '',
+        meetup_description: editListing.meetup_description || '',
         pickup_only: editListing.pickup_only || false,
         willing_to_ship: editListing.willing_to_ship || false,
-        meetup_location: editListing.meetup_locations?.[0] || '',
-        availability: editListing.availability || '',
+        availability: parsedAvailability,
         special_instructions: editListing.special_instructions || '',
-        deliveryMethod: editListing.pickup_only ? 'pickup' : 'shipping'
+        deliveryMethod: editListing.pickup_only ? 'pickup' : editListing.willing_to_ship ? 'ship' : 'pickup'
       }));
       setCurrentStep(0); // Start from first step
       localStorage.removeItem('editListing');
@@ -295,10 +359,128 @@ export default function CreateListing() {
     setPrimaryPhotoIndex(newPrimaryIndex);
   };
 
+  const initMap = (mapRef, markerRef, location, setLocation, mapId) => {
+    if (!window.L) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+      script.crossOrigin = '';
+      document.head.appendChild(script);
+      
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+      
+      script.onload = () => {
+        setTimeout(() => initMapInstance(mapRef, markerRef, location, setLocation, mapId), 100);
+      };
+    } else {
+      initMapInstance(mapRef, markerRef, location, setLocation, mapId);
+    }
+  };
+
+  const initMapInstance = (mapRef, markerRef, location, setLocation, mapId) => {
+    if (mapRef.current) return;
+    
+    const defaultLat = location.lat || 37.7749;
+    const defaultLng = location.lng || -122.4194;
+    
+    const map = window.L.map(mapId).setView([defaultLat, defaultLng], 13);
+    
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+    
+    const marker = window.L.marker([defaultLat, defaultLng], { draggable: true }).addTo(map);
+    
+    marker.on('dragend', function(e) {
+      const pos = e.target.getLatLng();
+      setLocation({ lat: pos.lat, lng: pos.lng });
+      reverseGeocode(pos.lat, pos.lng, setLocation === setListingLocation ? 'listing' : 'meetup');
+    });
+    
+    map.on('click', function(e) {
+      marker.setLatLng(e.latlng);
+      setLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+      reverseGeocode(e.latlng.lat, e.latlng.lng, setLocation === setListingLocation ? 'listing' : 'meetup');
+    });
+    
+    mapRef.current = map;
+    markerRef.current = marker;
+    
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  };
+
+  const reverseGeocode = (lat, lng, type) => {
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(res => res.json())
+      .then(data => {
+        const address = data.address;
+        const locationText = `${address.road || ''}, ${address.city || address.town || address.village || ''}, ${address.state || ''}, ${address.country || ''}`.replace(/^,\s*|,\s*$/g, '').replace(/,\s*,/g, ',');
+        if (type === 'listing') {
+          updateFormData('location_text', locationText);
+        } else {
+          updateFormData('meetup_location_text', locationText);
+        }
+      })
+      .catch(err => console.error('Geocoding error:', err));
+  };
+
+  const useCurrentLocation = (type) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          
+          if (type === 'listing') {
+            setListingLocation({ lat, lng });
+            if (listingMapRef.current && listingMarkerRef.current) {
+              listingMapRef.current.setView([lat, lng], 13);
+              listingMarkerRef.current.setLatLng([lat, lng]);
+            }
+            reverseGeocode(lat, lng, 'listing');
+          } else {
+            setMeetupLocation({ lat, lng });
+            if (meetupMapRef.current && meetupMarkerRef.current) {
+              meetupMapRef.current.setView([lat, lng], 13);
+              meetupMarkerRef.current.setLatLng([lat, lng]);
+            }
+            reverseGeocode(lat, lng, 'meetup');
+          }
+        },
+        (error) => {
+          alert('Unable to get your location. Please enable location services.');
+        }
+      );
+    } else {
+      alert('Geolocation is not supported by your browser.');
+    }
+  };
+
   const submitListing = async (status) => {
     // Validation
     if (!formData.title || !formData.description || !formData.price || !formData.condition || !formData.category_id) {
       setErrors({ submit: 'Please fill in all required fields.' });
+      return;
+    }
+
+    // Validate location - only required for new listings or if location was changed
+    // For editing, if location exists in formData.location_text, we can skip coordinate validation
+    if (!isEditing && (!listingLocation.lat || !listingLocation.lng)) {
+      setErrors({ submit: 'Please select listing location on the map.' });
+      return;
+    }
+    
+    // For editing, check if we have location data either in state or from existing data
+    if (isEditing && !listingLocation.lat && !formData.location_text) {
+      setErrors({ submit: 'Please select listing location on the map.' });
       return;
     }
 
@@ -316,7 +498,22 @@ export default function CreateListing() {
       data.append('price', formData.price);
       data.append('condition', formData.condition);
       data.append('category_id', formData.category_id);
+      
+      // Handle listing location (geography point)
       data.append('location_text', formData.location_text || '');
+      if (listingLocation.lat && listingLocation.lng) {
+        data.append('location_lat', listingLocation.lat);
+        data.append('location_lng', listingLocation.lng);
+      }
+      data.append('location_description', formData.location_description || '');
+      
+      // Handle meetup location (geography point)
+      if (meetupLocation.lat && meetupLocation.lng) {
+        data.append('meetup_location_text', formData.meetup_location_text || '');
+        data.append('meetup_location_lat', meetupLocation.lat);
+        data.append('meetup_location_lng', meetupLocation.lng);
+        data.append('meetup_description', formData.meetup_description || '');
+      }
       
       // Handle delivery method
       data.append('pickup_only', formData.deliveryMethod === 'pickup');
@@ -336,10 +533,7 @@ export default function CreateListing() {
         data.append('trade_preference', formData.trade_preference || '');
       }
       
-      // Handle meetup and availability
-      if (formData.meetup_location) {
-        data.append('meetup_locations', JSON.stringify([formData.meetup_location]));
-      }
+      // Handle availability
       if (formData.availability) {
         data.append('availability', JSON.stringify([formData.availability]));
       }
@@ -349,10 +543,12 @@ export default function CreateListing() {
       
       data.append('status', status);
 
-      // Append photos (only new ones for editing)
-      if (!isEditing || reorderedPhotos.length > 0) {
+      // Append photos (only new ones for editing, and only if they have file objects)
+      if (reorderedPhotos.length > 0) {
         reorderedPhotos.forEach((photo) => {
-          data.append('photos', photo.file, photo.name);
+          if (photo.file) {
+            data.append('photos', photo.file, photo.name);
+          }
         });
       }
 
@@ -366,10 +562,14 @@ export default function CreateListing() {
         });
       }
 
+      // Clear localStorage after successful submission
+      localStorage.removeItem('createListingFormData');
+      localStorage.removeItem('createListingStep');
+      
       navigate('/profile');
     } catch (error) {
       console.error('Error creating listing:', error);
-      setErrors({ submit: 'Failed to create listing. Please try again.' });
+      setErrors({ submit: error.response?.data?.message || 'Failed to create listing. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -492,6 +692,8 @@ export default function CreateListing() {
       case 1:
         return (
           <div className="step-content">
+            <h1>        </h1>
+            <h1></h1>
             <h2>Basic Item Details</h2>
             
             <div className="form-group">
@@ -674,15 +876,141 @@ export default function CreateListing() {
           <div className="step-content">
             <h2>Location & Meetup</h2>
             
-            <div className="form-group">
-              <label>Location</label>
-              <input
-                type="text"
-                value={formData.location_text}
-                onChange={(e) => updateFormData('location_text', e.target.value)}
-                placeholder="Enter your location"
-              />
+            {/* Listing Location Section */}
+            <div className="location-section">
+              <h3>📍 Listing Location</h3>
+              <p className="section-description">Where is your item located?</p>
+              
+              <div className="form-group">
+                <label>Select Location on Map *</label>
+                <div className="map-controls">
+                  <button
+                    type="button"
+                    className="current-location-btn"
+                    onClick={() => useCurrentLocation('listing')}
+                  >
+                    📍 Use Current Location
+                  </button>
+                  <span className="map-hint">Click on map or drag marker to set location</span>
+                </div>
+                <div 
+                  id="listing-map" 
+                  className="location-map"
+                  ref={(el) => {
+                    if (el && !listingMapRef.current) {
+                      setTimeout(() => {
+                        initMap(listingMapRef, listingMarkerRef, listingLocation, setListingLocation, 'listing-map');
+                      }, 100);
+                    }
+                  }}
+                ></div>
+                {listingLocation.lat && listingLocation.lng && (
+                  <small className="coordinates-display">
+                    Coordinates: {listingLocation.lat.toFixed(6)}, {listingLocation.lng.toFixed(6)}
+                  </small>
+                )}
+              </div>
+              
+              <div className="form-group">
+                <label>Detected Address</label>
+                <input
+                  type="text"
+                  value={formData.location_text || 'Select location on map to detect address'}
+                  readOnly
+                  className="readonly-input"
+                  placeholder="Address will be auto-detected from map"
+                />
+                <small className="field-hint">Address is automatically detected based on map location</small>
+              </div>
+              
+              <div className="form-group">
+                <label>Location Description (Optional)</label>
+                <textarea
+                  value={formData.location_description || ''}
+                  onChange={(e) => updateFormData('location_description', e.target.value)}
+                  placeholder="Add any specific details about the location (e.g., 'Room 305, Building A')"
+                  rows={3}
+                />
+                <small className="field-hint">Help buyers understand where exactly the item is</small>
+              </div>
             </div>
+
+            <div className="section-divider"></div>
+            
+            {/* Meetup Location Section */}
+            <div className="location-section">
+              <h3>🤝 Meetup Location</h3>
+              <p className="section-description">Where would you like to meet potential buyers?</p>
+              
+              <div className="form-group">
+                <label>Select Meetup Location on Map *</label>
+                <div className="map-controls">
+                  <button
+                    type="button"
+                    className="current-location-btn"
+                    onClick={() => useCurrentLocation('meetup')}
+                  >
+                    📍 Use Current Location
+                  </button>
+                  <button
+                    type="button"
+                    className="copy-location-btn"
+                    onClick={() => {
+                      setMeetupLocation({ ...listingLocation });
+                      updateFormData('meetup_location_text', formData.location_text);
+                      if (meetupMapRef.current && meetupMarkerRef.current && listingLocation.lat) {
+                        meetupMapRef.current.setView([listingLocation.lat, listingLocation.lng], 13);
+                        meetupMarkerRef.current.setLatLng([listingLocation.lat, listingLocation.lng]);
+                      }
+                    }}
+                  >
+                    📋 Copy Listing Location
+                  </button>
+                  <span className="map-hint">Click on map or drag marker to set location</span>
+                </div>
+                <div 
+                  id="meetup-map" 
+                  className="location-map"
+                  ref={(el) => {
+                    if (el && !meetupMapRef.current) {
+                      setTimeout(() => {
+                        initMap(meetupMapRef, meetupMarkerRef, meetupLocation, setMeetupLocation, 'meetup-map');
+                      }, 100);
+                    }
+                  }}
+                ></div>
+                {meetupLocation.lat && meetupLocation.lng && (
+                  <small className="coordinates-display">
+                    Coordinates: {meetupLocation.lat.toFixed(6)}, {meetupLocation.lng.toFixed(6)}
+                  </small>
+                )}
+              </div>
+              
+              <div className="form-group">
+                <label>Detected Address</label>
+                <input
+                  type="text"
+                  value={formData.meetup_location_text || 'Select location on map to detect address'}
+                  readOnly
+                  className="readonly-input"
+                  placeholder="Address will be auto-detected from map"
+                />
+                <small className="field-hint">Address is automatically detected based on map location</small>
+              </div>
+              
+              <div className="form-group">
+                <label>Meetup Location Description (Optional)</label>
+                <textarea
+                  value={formData.meetup_description || ''}
+                  onChange={(e) => updateFormData('meetup_description', e.target.value)}
+                  placeholder="Add specific details about the meetup location (e.g., 'Main entrance of library, near the coffee shop')"
+                  rows={3}
+                />
+                <small className="field-hint">Help buyers find the exact meetup spot</small>
+              </div>
+            </div>
+
+            <div className="section-divider"></div>
             
             <div className="form-group">
               <label>Delivery Method</label>
@@ -701,24 +1029,6 @@ export default function CreateListing() {
                       onChange={(e) => updateFormData('deliveryMethod', e.target.value)}
                     />
                     <span>{option.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            
-            <div className="form-group">
-              <label>Preferred Meetup Location</label>
-              <div className="radio-group">
-                {['Library', 'Student Center', 'Dorm Lobby', 'Parking Lot', 'Cafeteria', 'Gym'].map(location => (
-                  <label key={location} className="radio-option">
-                    <input
-                      type="radio"
-                      name="meetupLocation"
-                      value={location}
-                      checked={formData.meetup_location === location}
-                      onChange={(e) => updateFormData('meetup_location', e.target.value)}
-                    />
-                    <span>{location}</span>
                   </label>
                 ))}
               </div>
@@ -755,30 +1065,266 @@ export default function CreateListing() {
         );
         
       case 5:
+        // Combine existing photos and new photos for preview
+        const allPreviewPhotos = [
+          ...(isEditing && existingPhotos ? existingPhotos.map(p => ({ 
+            url: p.url.startsWith('http') ? p.url : `http://localhost:5000${p.url}`,
+            isExisting: true 
+          })) : []),
+          ...(formData.photos || []).map(p => ({ 
+            url: p.url,
+            isExisting: false 
+          }))
+        ];
+        
+        // Debug: Log photos on preview step
+        console.log('Preview Step - All Photos:', allPreviewPhotos);
+        console.log('Existing Photos:', existingPhotos);
+        console.log('New Photos:', formData.photos);
+        console.log('Primary Photo Index:', primaryPhotoIndex);
+        
         return (
-          <div className="step-content">
-            <h2>Preview & Publish</h2>
+          <div className="step-content preview-step">
+            <div className="preview-header-banner">
+              <h2>✨ Preview Your Listing</h2>
+              <p>Review how your listing will appear to buyers</p>
+            </div>
             
-            <div className="listing-preview">
-              {formData.photos.length > 0 && (
-                <div className="preview-photos">
-                  {formData.photos.slice(0, 3).map((photo, index) => (
-                    <img key={index} src={photo.url} alt={`Preview ${index + 1}`} />
-                  ))}
+            <div className="listing-preview-full">
+              {/* Photo Gallery Section */}
+              <div className="preview-gallery-section">
+                {allPreviewPhotos && allPreviewPhotos.length > 0 ? (
+                  <>
+                    <div className="preview-main-image">
+                      {allPreviewPhotos[primaryPhotoIndex] && allPreviewPhotos[primaryPhotoIndex].url ? (
+                        <img 
+                          src={allPreviewPhotos[primaryPhotoIndex].url} 
+                          alt={formData.title || 'Item'}
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          onLoad={() => console.log('Image loaded successfully:', allPreviewPhotos[primaryPhotoIndex].url)}
+                          onError={(e) => {
+                            console.error('Image failed to load:', allPreviewPhotos[primaryPhotoIndex]);
+                            e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23374151" width="400" height="300"/%3E%3Ctext fill="%23fff" x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-size="20"%3EImage Preview%3C/text%3E%3C/svg%3E';
+                          }}
+                        />
+                      ) : (
+                        <div className="image-loading">
+                          <span>📸</span>
+                          <p>Loading image...</p>
+                        </div>
+                      )}
+                      {allPreviewPhotos.length > 1 && (
+                        <>
+                          <button 
+                            type="button"
+                            className="photo-nav-btn prev-btn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPrimaryPhotoIndex(p => (p - 1 + allPreviewPhotos.length) % allPreviewPhotos.length);
+                            }}
+                          >
+                            ‹
+                          </button>
+                          <button 
+                            type="button"
+                            className="photo-nav-btn next-btn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              setPrimaryPhotoIndex(p => (p + 1) % allPreviewPhotos.length);
+                            }}
+                          >
+                            ›
+                          </button>
+                        </>
+                      )}
+                      <div className="image-counter">
+                        {primaryPhotoIndex + 1} / {allPreviewPhotos.length}
+                      </div>
+                    </div>
+                    {allPreviewPhotos.length > 1 && (
+                      <div className="preview-thumbnails">
+                        {allPreviewPhotos.map((photo, index) => (
+                          <div 
+                            key={index}
+                            className={`thumbnail-wrapper ${index === primaryPhotoIndex ? 'active' : ''}`}
+                            onClick={() => setPrimaryPhotoIndex(index)}
+                          >
+                            <img
+                              src={photo.url}
+                              alt={`Thumbnail ${index + 1}`}
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23374151" width="80" height="80"/%3E%3C/svg%3E';
+                              }}
+                            />
+                            {photo.isExisting && (
+                              <span className="existing-photo-badge">Existing</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="no-photos-placeholder">
+                    <span className="placeholder-icon">📷</span>
+                    <p>No photos added</p>
+                    <small>Add at least 3 photos to publish</small>
+                  </div>
+                )}
+              </div>
+
+              {/* Details Section */}
+              <div className="preview-details-section">
+                {/* Header */}
+                <div className="preview-listing-header">
+                  <h1 className="preview-title">{formData.title || 'Item Title'}</h1>
+                  <div className="preview-price-box">
+                    <span className="preview-price">${formData.price || '0.00'}</span>
+                    {formData.priceType === 'negotiable' && (
+                      <span className="price-badge negotiable">💬 Negotiable</span>
+                    )}
+                    {formData.priceType === 'firm' && (
+                      <span className="price-badge firm">🔒 Firm</span>
+                    )}
+                  </div>
                 </div>
-              )}
-              
-              <h3>{formData.title || 'Item Title'}</h3>
-              <p className="preview-price">${formData.price || '0.00'}</p>
-              <p className="preview-description">{formData.description || 'Item description'}</p>
-              
-              <div className="preview-details">
-                <p><strong>Condition:</strong> {formData.condition ? formData.condition.replace('_', ' ') : 'Not specified'}</p>
-                <p><strong>Location:</strong> {formData.location_text || 'Not specified'}</p>
+
+                {/* Basic Details */}
+                <div className="preview-card">
+                  <h3 className="card-title">📋 Item Details</h3>
+                  <div className="details-grid">
+                    <div className="detail-box">
+                      <span className="detail-label">Condition</span>
+                      <span className="detail-value">
+                        {formData.condition ? formData.condition.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Not specified'}
+                      </span>
+                    </div>
+                    <div className="detail-box">
+                      <span className="detail-label">Category</span>
+                      <span className="detail-value">
+                        {categories.find(c => c.id === formData.category_id)?.name || 'Not selected'}
+                      </span>
+                    </div>
+                    <div className="detail-box">
+                      <span className="detail-label">Payment</span>
+                      <span className="detail-value">{formData.paymentMethod || 'Not specified'}</span>
+                    </div>
+                    <div className="detail-box">
+                      <span className="detail-label">Delivery</span>
+                      <span className="detail-value">
+                        {formData.deliveryMethod === 'pickup' ? '🚗 Pickup Only' 
+                          : formData.deliveryMethod === 'ship' ? '📦 Shipping' 
+                          : formData.deliveryMethod === 'both' ? '🚗📦 Both' 
+                          : 'Not specified'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="preview-card">
+                  <h3 className="card-title">📝 Description</h3>
+                  <p className="description-text">
+                    {formData.description || 'No description provided'}
+                  </p>
+                </div>
+
+                {/* Trade Options */}
+                {formData.open_to_trades && (
+                  <div className="preview-card trade-card">
+                    <h3 className="card-title">🔄 Trade Options</h3>
+                    <div className="trade-info">
+                      <p><strong>Open to trades:</strong> ✅ Yes</p>
+                      {formData.trade_preference && (
+                        <p><strong>Preference:</strong> {formData.trade_preference.replace(/_/g, ' ')}</p>
+                      )}
+                      {formData.trade_description && (
+                        <div className="trade-description">
+                          <strong>Looking for:</strong>
+                          <p>{formData.trade_description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Location Information */}
+                {(formData.location_text || formData.meetup_location_text) && (
+                  <div className="preview-card location-card">
+                    <h3 className="card-title">📍 Location Information</h3>
+                    
+                    {formData.location_text && (
+                      <div className="location-item">
+                        <strong>📦 Listing Location</strong>
+                        <p className="location-address">{formData.location_text}</p>
+                        {formData.location_description && (
+                          <p className="location-note">ℹ️ {formData.location_description}</p>
+                        )}
+                        {listingLocation.lat && listingLocation.lng && (
+                          <p className="coordinates">
+                            📌 {listingLocation.lat.toFixed(4)}, {listingLocation.lng.toFixed(4)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    {formData.meetup_location_text && (
+                      <div className="location-item">
+                        <strong>🤝 Meetup Location</strong>
+                        <p className="location-address">{formData.meetup_location_text}</p>
+                        {formData.meetup_description && (
+                          <p className="location-note">ℹ️ {formData.meetup_description}</p>
+                        )}
+                        {meetupLocation.lat && meetupLocation.lng && (
+                          <p className="coordinates">
+                            📌 {meetupLocation.lat.toFixed(4)}, {meetupLocation.lng.toFixed(4)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Additional Information */}
+                {(formData.availability || formData.special_instructions) && (
+                  <div className="preview-card">
+                    <h3 className="card-title">ℹ️ Additional Information</h3>
+                    {formData.availability && (
+                      <div className="info-item">
+                        <strong>Availability:</strong>
+                        <p>{formData.availability}</p>
+                      </div>
+                    )}
+                    {formData.special_instructions && (
+                      <div className="info-item">
+                        <strong>Special Instructions:</strong>
+                        <p>{formData.special_instructions}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Summary Stats */}
+                <div className="preview-summary">
+                  <div className="summary-item">
+                    <span className="summary-icon">📸</span>
+                    <span className="summary-text">{allPreviewPhotos.length} Photos</span>
+                  </div>
+                  {isEditing && existingPhotos.length > 0 && formData.photos.length > 0 && (
+                    <div className="summary-item">
+                      <span className="summary-icon">🆕</span>
+                      <span className="summary-text">{formData.photos.length} New</span>
+                    </div>
+                  )}
+                  <div className="summary-item">
+                    <span className="summary-icon">✅</span>
+                    <span className="summary-text">Ready to {isEditing ? 'Update' : 'Publish'}</span>
+                  </div>
+                </div>
               </div>
             </div>
             
-            {errors.submit && <p className="error-message">{errors.submit}</p>}
+            {errors.submit && <div className="error-message-box">{errors.submit}</div>}
           </div>
         );
         
@@ -888,3 +1434,9 @@ export default function CreateListing() {
     </div>
   );
 }
+
+
+
+
+
+

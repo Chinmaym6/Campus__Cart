@@ -1,0 +1,151 @@
+.location-message {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 300px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(26, 26, 46, 0.8);
+  border: 1px solid rgba(138, 43, 226, 0.2);
+}
+
+.location-message.own {
+  background: linear-gradient(135deg, rgba(138, 43, 226, 0.3), rgba(30, 144, 255, 0.3));
+  border-color: rgba(138, 43, 226, 0.4);
+}
+
+.location-message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #fff;
+  font-size: 14px;
+}
+
+.location-icon {
+  font-size: 20px;
+  filter: drop-shadow(0 0 8px rgba(138, 43, 226, 0.5));
+}
+
+.location-message-coords {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+}
+
+.location-message-accuracy {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.location-message-preview {
+  position: relative;
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(138, 43, 226, 0.3);
+}
+
+.location-message-preview img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.location-message-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  padding: 8px;
+  text-align: center;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.location-message-preview:hover .location-message-overlay {
+  opacity: 1;
+}
+
+.location-message-map {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(138, 43, 226, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 250px;
+  }
+}
+
+.location-message-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.location-action-btn {
+  background: rgba(138, 43, 226, 0.2);
+  border: 1px solid rgba(138, 43, 226, 0.3);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.location-action-btn:hover {
+  background: rgba(138, 43, 226, 0.3);
+  border-color: rgba(138, 43, 226, 0.5);
+  transform: translateY(-1px);
+}
+
+.location-stop-btn {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border: none;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+  margin-bottom: 6px;
+}
+
+.location-stop-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.6);
+}
+
+@media (max-width: 480px) {
+  .location-message {
+    max-width: 250px;
+  }
+
+  .location-message-preview img {
+    height: 120px;
+  }
+}

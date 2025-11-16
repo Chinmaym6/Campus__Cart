@@ -1,0 +1,97 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "🛍️ Campus Cart" [ref=e6] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=e7]: 🛍️
+        - text: Campus Cart
+      - generic [ref=e8]:
+        - link "Login" [ref=e9] [cursor=pointer]:
+          - /url: /auth
+        - link "Register" [ref=e10] [cursor=pointer]:
+          - /url: /auth
+  - main [ref=e11]:
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - button "Login" [ref=e16] [cursor=pointer]
+        - button "Register" [ref=e17] [cursor=pointer]
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - heading "Welcome Back" [level=1] [ref=e20]
+          - paragraph [ref=e21]: Login to your Campus Cart account
+          - generic [ref=e22]:
+            - generic [ref=e23]:
+              - generic [ref=e24]: Email
+              - textbox "Email Email" [ref=e25]:
+                - /placeholder: Enter your email
+            - generic [ref=e26]:
+              - generic [ref=e27]: Password
+              - textbox "Password Password" [ref=e28]:
+                - /placeholder: Enter your password
+            - button "Login" [ref=e29] [cursor=pointer]
+          - link "Forgot Password?" [ref=e31] [cursor=pointer]:
+            - /url: /forgot-password
+        - generic [ref=e32]:
+          - heading "Join Campus Cart" [level=1] [ref=e33]
+          - paragraph [ref=e34]: Create your account
+          - generic [ref=e35]:
+            - generic [ref=e36]:
+              - generic [ref=e37]:
+                - generic [ref=e38]: First Name
+                - textbox "First Name" [ref=e39]:
+                  - /placeholder: Enter your first name
+              - generic [ref=e40]:
+                - generic [ref=e41]: Last Name
+                - textbox "Last Name" [ref=e42]:
+                  - /placeholder: Enter your last name
+            - generic [ref=e43]:
+              - generic [ref=e44]: Email
+              - textbox "Enter your email" [ref=e45]
+            - generic [ref=e46]:
+              - generic [ref=e47]: Password
+              - textbox "Enter your password" [ref=e48]
+            - generic [ref=e49]:
+              - generic [ref=e50]: Confirm Password
+              - textbox "Confirm Password" [ref=e51]:
+                - /placeholder: Confirm your password
+            - generic [ref=e52]:
+              - generic [ref=e53]: University
+              - textbox "University" [ref=e54]:
+                - /placeholder: Enter your university
+            - generic [ref=e55]:
+              - generic [ref=e56]:
+                - generic [ref=e57]: Graduation Year
+                - spinbutton "Graduation Year" [ref=e58]
+              - generic [ref=e59]:
+                - generic [ref=e60]: Major
+                - textbox "Major" [ref=e61]:
+                  - /placeholder: Enter your major
+            - button "Register" [ref=e62] [cursor=pointer]
+          - heading [level=1]
+  - contentinfo [ref=e63]:
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - heading "Campus Cart" [level=3] [ref=e67]
+          - paragraph [ref=e68]: Trade smarter on campus. Buy, sell, and exchange items with fellow students.
+        - generic [ref=e69]:
+          - heading "Quick Links" [level=4] [ref=e70]
+          - list [ref=e71]:
+            - listitem [ref=e72]:
+              - link "Home" [ref=e73] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e74]:
+              - link "Register" [ref=e75] [cursor=pointer]:
+                - /url: /register
+            - listitem [ref=e76]:
+              - link "Login" [ref=e77] [cursor=pointer]:
+                - /url: /login
+        - generic [ref=e78]:
+          - heading "Contact" [level=4] [ref=e79]
+          - paragraph [ref=e80]: "Email: campus.cart7@gmail.com"
+          - paragraph [ref=e81]: Follow us on social media
+      - paragraph [ref=e83]: © 2025 Campus Cart. All rights reserved.
+```

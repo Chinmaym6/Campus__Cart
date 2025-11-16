@@ -1,35 +1,38 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import nodemailer from 'nodemailer';
-import pool from '../config/database.js';
-import multer from 'multer';
-import path from 'path';
+import express from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
+import nodemailer from "nodemailer";
+import pool from "../config/database.js";
+import multer from "multer";
+import path from "path";
 
 const router = express.Router();
 
 // Multer config for photo uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, "uploads/");
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+    );
+  },
 });
 
 const upload = multer({
   storage: storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error("Only image files are allowed"));
     }
-  }
+  },
 });
 
 const transporter = nodemailer.createTransport({
@@ -38,45 +41,61 @@ const transporter = nodemailer.createTransport({
   secure: false,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
+    pass: process.env.SMTP_PASS,
+  },
 });
 
 const generateToken = (userId, email) => {
-  return jwt.sign(
-    { id: userId, email },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
+  return jwt.sign({ id: userId, email }, process.env.JWT_SECRET, {
+    expiresIn: "7d",
+  });
 };
 
 const generateVerificationToken = () => {
   return uuidv4();
 };
 
-router.post('/register', async (req, res) => {
+router.post("/register", async (req, res) => {
   try {
-    const { email, password, confirmPassword, firstName, lastName, university, graduationYear, major } = req.body;
+    const {
+      email,
+      password,
+      confirmPassword,
+      firstName,
+      lastName,
+      university,
+      graduationYear,
+      major,
+    } = req.body;
 
-    if (!email || !password || !confirmPassword || !firstName || !lastName || !university) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (
+      !email ||
+      !password ||
+      !confirmPassword ||
+      !firstName ||
+      !lastName ||
+      !university
+    ) {
+      return res.status(400).json({ error: "Missing required fields" });
     }
 
     if (password !== confirmPassword) {
-      return res.status(400).json({ error: 'Passwords do not match' });
+      return res.status(400).json({ error: "Passwords do not match" });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      return res
+        .status(400)
+        .json({ error: "Password must be at least 6 characters" });
     }
 
     const existingUser = await pool.query(
-      'SELECT id FROM users WHERE email = $1',
+      "SELECT id FROM users WHERE email = $1",
       [email]
     );
 
     if (existingUser.rows.length > 0) {
-      return res.status(409).json({ error: 'Email already registered' });
+      return res.status(409).json({ error: "Email already registered" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -86,7 +105,16 @@ router.post('/register', async (req, res) => {
     await pool.query(
       `INSERT INTO users (id, email, password_hash, first_name, last_name, university, graduation_year, major, email_verified)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, FALSE)`,
-      [userId, email, hashedPassword, firstName, lastName, university, graduationYear || null, major || null]
+      [
+        userId,
+        email,
+        hashedPassword,
+        firstName,
+        lastName,
+        university,
+        graduationYear || null,
+        major || null,
+      ]
     );
 
     await pool.query(
@@ -101,7 +129,7 @@ router.post('/register', async (req, res) => {
       await transporter.sendMail({
         from: process.env.SMTP_USER,
         to: email,
-        subject: 'Verify Your Campus Cart Email',
+        subject: "Verify Your Campus Cart Email",
         html: `
           <h2>Welcome to Campus Cart!</h2>
           <p>Hi ${firstName},</p>
@@ -111,60 +139,72 @@ router.post('/register', async (req, res) => {
           </a>
           <p>Or copy this link: ${verificationUrl}</p>
           <p>This link expires in 24 hours.</p>
-        `
+        `,
       });
     } catch (emailError) {
-      console.warn('⚠ Email sending failed (development mode):', emailError.message);
-      console.log(`📧 VERIFICATION TOKEN (for development): ${verificationToken}`);
+      console.warn(
+        "⚠ Email sending failed (development mode):",
+        emailError.message
+      );
+      console.log(
+        `📧 VERIFICATION TOKEN (for development): ${verificationToken}`
+      );
       console.log(`📧 VERIFICATION LINK: ${verificationUrl}`);
     }
 
     res.status(201).json({
       success: true,
-      message: 'Registration successful! Check your email for verification link.',
-      token: verificationToken
+      message:
+        "Registration successful! Check your email for verification link.",
+      token: verificationToken,
     });
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error("Register error:", error);
+    res.status(500).json({ error: "Registration failed" });
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+      return res.status(400).json({ error: "Email and password required" });
     }
 
     const user = await pool.query(
-      'SELECT id, email, password_hash, email_verified FROM users WHERE email = $1',
+      "SELECT id, email, password_hash, email_verified FROM users WHERE email = $1",
       [email]
     );
 
     if (user.rows.length === 0) {
-      return res.status(401).json({ error: 'Email doesnt exist' });
+      return res.status(401).json({ error: "Email doesnt exist" });
     }
 
     const userRecord = user.rows[0];
 
     if (!userRecord.email_verified) {
-      return res.status(403).json({ error: 'Email not verified. Check your inbox for verification link.' });
+      return res
+        .status(403)
+        .json({
+          error: "Email not verified. Check your inbox for verification link.",
+        });
     }
 
-    const validPassword = await bcrypt.compare(password, userRecord.password_hash);
+    const validPassword = await bcrypt.compare(
+      password,
+      userRecord.password_hash
+    );
 
     if (!validPassword) {
-      return res.status(401).json({ error: 'Password wrong' });
+      return res.status(401).json({ error: "Password wrong" });
     }
 
     const token = generateToken(userRecord.id, userRecord.email);
 
-    await pool.query(
-      'UPDATE users SET last_active_at = NOW() WHERE id = $1',
-      [userRecord.id]
-    );
+    await pool.query("UPDATE users SET last_active_at = NOW() WHERE id = $1", [
+      userRecord.id,
+    ]);
 
     res.json({
       success: true,
@@ -174,16 +214,16 @@ router.post('/login', async (req, res) => {
         email: userRecord.email,
         first_name: userRecord.first_name,
         last_name: userRecord.last_name,
-        profile_photo_url: userRecord.profile_photo_url
-      }
+        profile_photo_url: userRecord.profile_photo_url,
+      },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    console.error("Login error:", error);
+    res.status(500).json({ error: "Login failed" });
   }
 });
 
-router.get('/verify/:token', async (req, res) => {
+router.get("/verify/:token", async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -194,44 +234,46 @@ router.get('/verify/:token', async (req, res) => {
     );
 
     if (verification.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired verification token' });
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification token" });
     }
 
     const userId = verification.rows[0].user_id;
 
-    await pool.query(
-      'UPDATE users SET email_verified = TRUE WHERE id = $1',
-      [userId]
-    );
+    await pool.query("UPDATE users SET email_verified = TRUE WHERE id = $1", [
+      userId,
+    ]);
 
-    await pool.query(
-      'DELETE FROM email_verifications WHERE token = $1',
-      [token]
-    );
+    await pool.query("DELETE FROM email_verifications WHERE token = $1", [
+      token,
+    ]);
 
     res.json({
       success: true,
-      message: 'Email verified successfully! You can now login.'
+      message: "Email verified successfully! You can now login.",
     });
   } catch (error) {
-    console.error('Verification error:', error);
-    res.status(500).json({ error: 'Verification failed' });
+    console.error("Verification error:", error);
+    res.status(500).json({ error: "Verification failed" });
   }
 });
 
 // Forgot Password - Send OTP
-router.post('/forgot-password', async (req, res) => {
+router.post("/forgot-password", async (req, res) => {
   try {
     const { email } = req.body;
 
     if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+      return res.status(400).json({ error: "Email is required" });
     }
 
     // Check if user exists
-    const user = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const user = await pool.query("SELECT id FROM users WHERE email = $1", [
+      email,
+    ]);
     if (user.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
     // Generate 6-digit OTP
@@ -239,7 +281,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Store OTP with 15-minute expiration
     await pool.query(
-      'INSERT INTO password_resets (email, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'15 minutes\')',
+      "INSERT INTO password_resets (email, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '15 minutes')",
       [email, otp]
     );
 
@@ -248,41 +290,44 @@ router.post('/forgot-password', async (req, res) => {
       await transporter.sendMail({
         from: process.env.SMTP_USER,
         to: email,
-        subject: 'Password Reset OTP - Campus Cart',
+        subject: "Password Reset OTP - Campus Cart",
         html: `
           <h2>Password Reset</h2>
           <p>Your OTP for password reset is: <strong>${otp}</strong></p>
           <p>This OTP expires in 15 minutes.</p>
-        `
+        `,
       });
     } catch (emailError) {
-      console.warn('⚠ Email sending failed (development mode):', emailError.message);
+      console.warn(
+        "⚠ Email sending failed (development mode):",
+        emailError.message
+      );
       console.log(`📧 PASSWORD RESET OTP for ${email}: ${otp}`);
     }
 
-    res.json({ success: true, message: 'OTP sent to your email' });
+    res.json({ success: true, message: "OTP sent to your email" });
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ error: 'Failed to send OTP' });
+    console.error("Forgot password error:", error);
+    res.status(500).json({ error: "Failed to send OTP" });
   }
 });
 
 // Verify OTP
-router.post('/verify-otp', async (req, res) => {
+router.post("/verify-otp", async (req, res) => {
   try {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-      return res.status(400).json({ error: 'Email and OTP are required' });
+      return res.status(400).json({ error: "Email and OTP are required" });
     }
 
     const reset = await pool.query(
-      'SELECT id FROM password_resets WHERE email = $1 AND token = $2 AND expires_at > NOW()',
+      "SELECT id FROM password_resets WHERE email = $1 AND token = $2 AND expires_at > NOW()",
       [email, otp]
     );
 
     if (reset.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired OTP' });
+      return res.status(400).json({ error: "Invalid or expired OTP" });
     }
 
     // Generate reset token
@@ -292,38 +337,40 @@ router.post('/verify-otp', async (req, res) => {
     // Actually, better to add reset_token to table, but since already created, perhaps delete and insert new.
 
     // For now, delete the OTP and create a reset token entry
-    await pool.query('DELETE FROM password_resets WHERE email = $1', [email]);
+    await pool.query("DELETE FROM password_resets WHERE email = $1", [email]);
 
     // Insert reset token with 15 min expiry
     await pool.query(
-      'INSERT INTO password_resets (email, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'15 minutes\')',
+      "INSERT INTO password_resets (email, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL '15 minutes')",
       [email, resetToken]
     );
 
     res.json({ success: true, resetToken });
   } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({ error: 'OTP verification failed' });
+    console.error("Verify OTP error:", error);
+    res.status(500).json({ error: "OTP verification failed" });
   }
 });
 
 // Reset Password
-router.post('/reset-password', async (req, res) => {
+router.post("/reset-password", async (req, res) => {
   try {
     const { resetToken, newPassword } = req.body;
 
     if (!resetToken || !newPassword) {
-      return res.status(400).json({ error: 'Reset token and new password are required' });
+      return res
+        .status(400)
+        .json({ error: "Reset token and new password are required" });
     }
 
     // Find the reset record
     const reset = await pool.query(
-      'SELECT email FROM password_resets WHERE token = $1 AND expires_at > NOW()',
+      "SELECT email FROM password_resets WHERE token = $1 AND expires_at > NOW()",
       [resetToken]
     );
 
     if (reset.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
+      return res.status(400).json({ error: "Invalid or expired reset token" });
     }
 
     const email = reset.rows[0].email;
@@ -332,47 +379,55 @@ router.post('/reset-password', async (req, res) => {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     // Update user password
-    await pool.query('UPDATE users SET password_hash = $1 WHERE email = $2', [hashedPassword, email]);
+    await pool.query("UPDATE users SET password_hash = $1 WHERE email = $2", [
+      hashedPassword,
+      email,
+    ]);
 
     // Delete reset record
-    await pool.query('DELETE FROM password_resets WHERE token = $1', [resetToken]);
+    await pool.query("DELETE FROM password_resets WHERE token = $1", [
+      resetToken,
+    ]);
 
-    res.json({ success: true, message: 'Password reset successfully' });
+    res.json({ success: true, message: "Password reset successfully" });
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ error: 'Password reset failed' });
+    console.error("Reset password error:", error);
+    res.status(500).json({ error: "Password reset failed" });
   }
 });
 
 // Upload Profile Photo
-router.post('/upload-photo', upload.single('photo'), async (req, res) => {
+router.post("/upload-photo", upload.single("photo"), async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
     const photoPath = `/uploads/${req.file.filename}`;
 
-    await pool.query('UPDATE users SET profile_photo_url = $1 WHERE id = $2', [photoPath, userId]);
+    await pool.query("UPDATE users SET profile_photo_url = $1 WHERE id = $2", [
+      photoPath,
+      userId,
+    ]);
 
     res.json({ success: true, photoUrl: photoPath });
   } catch (error) {
-    console.error('Photo upload error:', error);
-    res.status(500).json({ error: 'Photo upload failed' });
+    console.error("Photo upload error:", error);
+    res.status(500).json({ error: "Photo upload failed" });
   }
 });
 
 // Get Profile
-router.get('/profile', async (req, res) => {
+router.get("/profile", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
@@ -388,21 +443,21 @@ router.get('/profile', async (req, res) => {
     );
 
     if (user.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: "User not found" });
     }
 
     res.json({ success: true, user: user.rows[0] });
   } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    console.error("Get profile error:", error);
+    res.status(500).json({ error: "Failed to fetch profile" });
   }
 });
 
 // Update Profile
-router.put('/profile', async (req, res) => {
+router.put("/profile", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
@@ -413,7 +468,7 @@ router.put('/profile', async (req, res) => {
       university,
       graduation_year,
       major,
-      location_text
+      location_text,
     } = req.body;
 
     // Build dynamic update query
@@ -448,33 +503,38 @@ router.put('/profile', async (req, res) => {
 
     if (updates.length > 0) {
       values.push(userId);
-      const query = `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
+      const query = `UPDATE users SET ${updates.join(
+        ", "
+      )} WHERE id = $${paramIndex}`;
       await pool.query(query, values);
     }
 
-    res.json({ success: true, message: 'Profile updated successfully' });
+    res.json({ success: true, message: "Profile updated successfully" });
   } catch (error) {
-    console.error('Profile update error:', error);
-    res.status(500).json({ error: 'Profile update failed' });
+    console.error("Profile update error:", error);
+    res.status(500).json({ error: "Profile update failed" });
   }
 });
 
 // Update Email
-router.put('/update-email', async (req, res) => {
+router.put("/update-email", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
     const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email is required' });
+    if (!email) return res.status(400).json({ error: "Email is required" });
 
     // Check if email is already taken
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, userId]);
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE email = $1 AND id != $2",
+      [email, userId]
+    );
     if (existing.rows.length > 0) {
-      return res.status(409).json({ error: 'Email already in use' });
+      return res.status(409).json({ error: "Email already in use" });
     }
 
     // Generate verification token
@@ -488,13 +548,17 @@ router.put('/update-email', async (req, res) => {
     );
 
     // Send verification email
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email-change/${verificationToken}?newEmail=${encodeURIComponent(email)}`;
+    const verificationUrl = `${
+      process.env.FRONTEND_URL
+    }/verify-email-change/${verificationToken}?newEmail=${encodeURIComponent(
+      email
+    )}`;
 
     try {
       await transporter.sendMail({
         from: process.env.SMTP_USER,
         to: email,
-        subject: 'Verify Your New Email - Campus Cart',
+        subject: "Verify Your New Email - Campus Cart",
         html: `
           <h2>Verify Your New Email</h2>
           <p>Click the link below to verify your new email address:</p>
@@ -503,26 +567,29 @@ router.put('/update-email', async (req, res) => {
           </a>
           <p>Or copy this link: ${verificationUrl}</p>
           <p>This link expires in 24 hours.</p>
-        `
+        `,
       });
     } catch (emailError) {
-      console.warn('⚠ Email sending failed:', emailError.message);
+      console.warn("⚠ Email sending failed:", emailError.message);
     }
 
-    res.json({ success: true, message: 'Verification email sent to new email address' });
+    res.json({
+      success: true,
+      message: "Verification email sent to new email address",
+    });
   } catch (error) {
-    console.error('Update email error:', error);
-    res.status(500).json({ error: 'Failed to update email' });
+    console.error("Update email error:", error);
+    res.status(500).json({ error: "Failed to update email" });
   }
 });
 
 // Verify Email Change
-router.get('/verify-email-change/:token', async (req, res) => {
+router.get("/verify-email-change/:token", async (req, res) => {
   try {
     const { token } = req.params;
     const { newEmail } = req.query;
 
-    if (!newEmail) return res.status(400).json({ error: 'New email required' });
+    if (!newEmail) return res.status(400).json({ error: "New email required" });
 
     const verification = await pool.query(
       `SELECT user_id FROM email_verifications
@@ -531,77 +598,128 @@ router.get('/verify-email-change/:token', async (req, res) => {
     );
 
     if (verification.rows.length === 0) {
-      return res.status(400).json({ error: 'Invalid or expired verification token' });
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired verification token" });
     }
 
     const userId = verification.rows[0].user_id;
 
     // Update email and set verified
     await pool.query(
-      'UPDATE users SET email = $1, email_verified = TRUE WHERE id = $2',
+      "UPDATE users SET email = $1, email_verified = TRUE WHERE id = $2",
       [newEmail, userId]
     );
 
     // Delete verification token
-    await pool.query('DELETE FROM email_verifications WHERE token = $1', [token]);
+    await pool.query("DELETE FROM email_verifications WHERE token = $1", [
+      token,
+    ]);
 
-    res.json({ success: true, message: 'Email updated successfully' });
+    res.json({ success: true, message: "Email updated successfully" });
   } catch (error) {
-    console.error('Verify email change error:', error);
-    res.status(500).json({ error: 'Failed to verify email change' });
+    console.error("Verify email change error:", error);
+    res.status(500).json({ error: "Failed to verify email change" });
   }
 });
 
-router.put('/update-location', async (req, res) => {
+router.put("/update-location", async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
     const { lat, lng, address } = req.body;
     if (!lat || !lng) {
-      return res.status(400).json({ error: 'Latitude and longitude required' });
+      return res.status(400).json({ error: "Latitude and longitude required" });
     }
 
     const locationPoint = `POINT(${lng} ${lat})`; // Note: lng lat for PostGIS
 
     await pool.query(
-      'UPDATE users SET location = ST_GeomFromText($1, 4326), location_text = $2 WHERE id = $3',
+      "UPDATE users SET location = ST_GeomFromText($1, 4326), location_text = $2 WHERE id = $3",
       [locationPoint, address || null, userId]
     );
 
-    res.json({ success: true, message: 'Location updated successfully' });
+    res.json({ success: true, message: "Location updated successfully" });
   } catch (error) {
-    console.error('Location update error:', error);
-    res.status(500).json({ error: 'Location update failed' });
+    console.error("Location update error:", error);
+    res.status(500).json({ error: "Location update failed" });
   }
 });
 
-router.post('/upload-photo', upload.single('photo'), async (req, res) => {
+router.post("/upload-photo", upload.single("photo"), async (req, res) => {
   try {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) return res.status(401).json({ error: "No token provided" });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decoded.id;
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      return res.status(400).json({ error: "No file uploaded" });
     }
 
     const photoUrl = `/uploads/${req.file.filename}`;
 
-    await pool.query(
-      'UPDATE users SET profile_photo_url = $1 WHERE id = $2',
-      [photoUrl, userId]
-    );
+    await pool.query("UPDATE users SET profile_photo_url = $1 WHERE id = $2", [
+      photoUrl,
+      userId,
+    ]);
 
     res.json({ success: true, photoUrl });
   } catch (error) {
-    console.error('Upload photo error:', error);
-    res.status(500).json({ error: 'Upload failed' });
+    console.error("Upload photo error:", error);
+    res.status(500).json({ error: "Upload failed" });
+  }
+});
+
+// Get public user profile
+router.get("/user/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const userQuery = await pool.query(
+      `
+      SELECT 
+        id, first_name, last_name, email, university, major, graduation_year,
+        profile_photo_url, bio, location_text, email_verified, phone_verified,
+        level, total_points, avg_rating, total_reviews_received,
+        total_sales, total_purchases, avg_response_time, 
+        meetup_reliability_score, last_active_at, created_at
+      FROM users
+      WHERE id = $1
+    `,
+      [userId]
+    );
+
+    if (userQuery.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Get user's active listings
+    const listingsQuery = await pool.query(
+      `
+      SELECT id, title, price, primary_photo_url, condition, created_at
+      FROM items
+      WHERE seller_id = $1 
+        AND status = 'available' 
+        AND deleted_at IS NULL
+      ORDER BY created_at DESC
+      LIMIT 20
+    `,
+      [userId]
+    );
+
+    res.json({
+      user: userQuery.rows[0],
+      listings: listingsQuery.rows,
+    });
+  } catch (error) {
+    console.error("Error fetching public profile:", error);
+    res.status(500).json({ error: "Failed to fetch profile" });
   }
 });
 

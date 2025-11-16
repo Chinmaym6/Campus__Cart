@@ -52,22 +52,22 @@ export default function Dashboard() {
         )}
 
         <div className="features-section">
-          <h2>Coming Soon</h2>
-          <p>We're building these features to enhance your trading experience:</p>
+          <h2>What You Can Do</h2>
+          <p>Explore all the features available to you:</p>
           <ul className="feature-list">
-            <li>🛒 Browse marketplace listings</li>
-            <li>📝 Create and manage your listings</li>
-            <li>💬 Message other traders</li>
-            <li>⭐ View reviews and ratings</li>
-            <li>📍 Find items near you on campus</li>
-            <li>❤️ Save your favorite items</li>
+            <li>✅ Browse marketplace listings</li>
+            <li>✅ Create and manage your listings</li>
+            <li>💬 Message other traders (Coming Soon)</li>
+            <li>⭐ View reviews and ratings (Coming Soon)</li>
+            <li>✅ Find items near you on campus</li>
+            <li>✅ Save your favorite items</li>
           </ul>
         </div>
 
         <div className="quick-actions">
           <h2>Quick Actions</h2>
           <div className="action-buttons">
-            <button className="action-btn" disabled>
+            <button className="action-btn" onClick={() => navigate('/marketplace')}>
               <span className="action-icon">📚</span>
               <span>Browse Items</span>
             </button>

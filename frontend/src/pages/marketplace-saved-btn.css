@@ -1,0 +1,37 @@
+/* Saved Items Button */
+.saved-items-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.saved-items-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(102, 126, 234, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .saved-items-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}

@@ -57,6 +57,8 @@ export default function Navbar() {
           ) : (
             <>
               <Link to="/dashboard" className="nav-link">Dashboard</Link>
+              <Link to="/marketplace" className="nav-link">Browse</Link>
+              <Link to="/messages" className="nav-link">💬 Messages</Link>
               <div className="profile-dropdown" ref={dropdownRef}>
                 <button onClick={toggleDropdown} className="profile-icon">
                   👤
